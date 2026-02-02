@@ -1,6 +1,4 @@
 importScripts("colors.js");
-const COLORS = globalThis.PASTELGPT_COLORS;
-const extractConversationIdFromUrl = globalThis.PASTELGPT_extractConversationId;
 
 const MENU_PREFIX = "pastelgpt_tag_";
 const MENU_CLEAR = "pastelgpt_clear";
@@ -63,7 +61,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const tabId = tab?.id;
   if (tabId == null) return;
 
-  const convFromLink = extractConversationIdFromUrl(info.linkUrl);
+  const convFromLink = extractConversationId(info.linkUrl);
   const conversationId = convFromLink || lastTargetByTab.get(tabId) || "";
 
   if (!conversationId) return;
