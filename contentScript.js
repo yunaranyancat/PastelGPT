@@ -1,5 +1,3 @@
-// COLORS is loaded from colors.js via manifest content_scripts
-// Access via globalThis.PASTELGPT_COLORS_BY_ID (object map) and globalThis.PASTELGPT_COLOR_IDS
 const COLORS = globalThis.PASTELGPT_COLORS_BY_ID;
 const extractConversationIdFromHref = (href) => globalThis.PASTELGPT_extractConversationId(href, location.origin);
 
@@ -13,20 +11,16 @@ const TINTS = {
 };
 
 function findChatSidebarNav() {
-  // Heuristic: nav/aside containing many conversation links
   const candidates = Array.from(document.querySelectorAll("nav, aside"));
   for (const el of candidates) {
     const links = el.querySelectorAll('a[href*="/c/"]');
     if (links.length >= 3) return el;
   }
-  // fallback: any parent of a conversation link
   const anyLink = document.querySelector('a[href*="/c/"]');
   return anyLink ? anyLink.closest("nav, aside") : null;
 }
 
 function getItemElementFromLink(link) {
-  // Try to hide only the actual row element. Never fall back to parentElement,
-  // because ChatGPT sometimes groups multiple rows under one parent.
   return link.closest("li") || link.closest('[role="listitem"]') || link;
 }
 
@@ -71,7 +65,6 @@ function applyPageTint(tintKey) {
 async function render() {
   const { tags, settings } = await loadAll();
   let enabledColors = Array.isArray(settings?.enabledColors) ? settings.enabledColors : Object.keys(COLORS);
-  // If user unchecked all colors, treat it as "no color filter" (show all tagged)
   if (enabledColors.length === 0) enabledColors = Object.keys(COLORS);
   const showUntagged = settings?.showUntagged ?? true;
   const tintKey = settings?.tint ?? "off";
@@ -81,7 +74,6 @@ async function render() {
 
   const links = Array.from(document.querySelectorAll('a[href*="/c/"]'));
   for (const link of links) {
-    // only affect links in the sidebar
     if (nav && !nav.contains(link)) continue;
 
     const convId = extractConversationIdFromHref(link.getAttribute("href"));
@@ -96,7 +88,6 @@ async function render() {
   }
 }
 
-// Keep target for context menu actions (best effort)
 let menuEl = null;
 let menuConvId = "";
 let menuOpen = false;
@@ -126,7 +117,6 @@ function ensureMenu() {
     return item;
   };
 
-  // Build list
   for (const [id, c] of Object.entries(COLORS)) {
     menuEl.appendChild(makeItem(c.label, c.hex, async () => {
       await setTagForConversation(menuConvId, id);
@@ -143,7 +133,6 @@ function ensureMenu() {
 
   document.body.appendChild(menuEl);
 
-  // Close on outside click / scroll / escape
   document.addEventListener("click", hideMenu, true);
   document.addEventListener("scroll", hideMenu, true);
   document.addEventListener("keydown", (e) => {
@@ -158,7 +147,6 @@ function showMenu(x, y, convId) {
   menuConvId = convId || "";
   if (!menuConvId) return;
 
-  // Clamp into viewport
   menuEl.style.display = "block";
   menuEl.style.left = "0px";
   menuEl.style.top = "0px";
@@ -193,7 +181,6 @@ async function setTagForConversation(conversationId, colorId) {
   await render();
 }
 
-// Right-click on chat items: show our menu ONLY (no browser menu)
 document.addEventListener("contextmenu", (ev) => {
   const a = ev.target?.closest?.('a[href*="/c/"]');
   if (!a) return;
@@ -210,14 +197,12 @@ document.addEventListener("contextmenu", (ev) => {
   showMenu(ev.clientX, ev.clientY, convId);
 }, true);
 
-
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
   if (changes.tags || changes.settings) {
     render().catch(() => {});
   }
 });
-
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.type === "PASTELGPT_REFRESH") {
@@ -226,7 +211,6 @@ chrome.runtime.onMessage.addListener((msg) => {
 });
 
 const mo = new MutationObserver(() => {
-  // Debounce a bit
   clearTimeout(window.__pastelgptRenderTimer);
   window.__pastelgptRenderTimer = setTimeout(() => render().catch(() => {}), 120);
 });

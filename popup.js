@@ -1,5 +1,3 @@
-// COLORS is loaded from colors.js via script tag in popup.html
-// Access via globalThis.PASTELGPT_COLORS
 const COLORS = globalThis.PASTELGPT_COLORS;
 
 const DEFAULT_SETTINGS = {
@@ -22,7 +20,6 @@ async function refreshActiveTab(){
 
 async function save(settings) {
   await chrome.storage.local.set({ settings });
-  // Ask content script to refresh
   await refreshActiveTab();
 }
 
@@ -38,7 +35,6 @@ function el(tag, attrs = {}, children = []) {
   return e;
 }
 
-// Popup runs in its own document; this guard prevents hard failures if popup.html changes.
 document.addEventListener("DOMContentLoaded", async () => {
   const { settings } = await load();
 
@@ -48,7 +44,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const resetTintBtn = document.getElementById("resetTintBtn");
   const resetAllBtn = document.getElementById("resetAllBtn");
 
-  // If any required elements are missing, don't crash the popup.
   if (!colorsGrid || !showUntagged || !tintSelect || !resetTintBtn || !resetAllBtn) {
     console.warn("[PastelGPT] popup.html is missing expected elements", {
       colorsGrid: !!colorsGrid,
@@ -73,7 +68,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (checkbox.checked) {
         enabled.add(c.id);
       } else {
-        // Prevent "empty filter" state: at least one color must stay enabled.
         enabled.delete(c.id);
         if (enabled.size === 0) {
           checkbox.checked = true;
@@ -111,11 +105,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   resetAllBtn.addEventListener("click", async () => {
-    // Reset all settings + clear all tags
     const fresh = { ...DEFAULT_SETTINGS };
     await chrome.storage.local.set({ tags: {}, settings: fresh });
 
-    // Update in-memory + UI
     settings.showUntagged = fresh.showUntagged;
     settings.enabledColors = [...fresh.enabledColors];
     settings.tint = fresh.tint;

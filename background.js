@@ -1,4 +1,3 @@
-// Import shared colors
 importScripts("colors.js");
 const COLORS = globalThis.PASTELGPT_COLORS;
 const extractConversationIdFromUrl = globalThis.PASTELGPT_extractConversationId;
@@ -6,20 +5,17 @@ const extractConversationIdFromUrl = globalThis.PASTELGPT_extractConversationId;
 const MENU_PREFIX = "pastelgpt_tag_";
 const MENU_CLEAR = "pastelgpt_clear";
 
-const lastTargetByTab = new Map(); // tabId -> conversationId
+const lastTargetByTab = new Map();
 
 chrome.runtime.onInstalled.addListener(async () => {
-  // Clean old menus
   try { await chrome.contextMenus.removeAll(); } catch (_) {}
 
-  // Parent menu
   chrome.contextMenus.create({
     id: "pastelgpt_root",
     title: "Tag",
     contexts: ["page", "link"]
   });
 
-  // Color items
   for (const c of COLORS) {
     chrome.contextMenus.create({
       id: MENU_PREFIX + c.id,
@@ -53,9 +49,7 @@ async function setTag(conversationId, colorId) {
 async function notifyActiveTab(tabId) {
   try {
     await chrome.tabs.sendMessage(tabId, { type: "PASTELGPT_REFRESH" });
-  } catch (_) {
-    // content script may not be ready; ignore
-  }
+  } catch (_) {}
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -63,14 +57,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     lastTargetByTab.set(sender.tab.id, msg.conversationId || "");
     sendResponse({ ok: true });
   }
-  // return true not needed
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const tabId = tab?.id;
   if (tabId == null) return;
 
-  // Best-effort pick: linkUrl first, else last stored target
   const convFromLink = extractConversationIdFromUrl(info.linkUrl);
   const conversationId = convFromLink || lastTargetByTab.get(tabId) || "";
 
