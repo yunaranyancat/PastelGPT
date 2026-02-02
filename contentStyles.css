@@ -1,0 +1,92 @@
+/* Tag marker without changing layout */
+a.pastelgpt-tagged {
+  position: relative !important;
+  width: 100% !important;
+  box-shadow: inset 4px 0 0 var(--pastelgpt-tag-color) !important;
+  background-color: color-mix(in srgb, var(--pastelgpt-tag-color) 16%, transparent) !important;
+  border-radius: 10px;
+}
+
+a.pastelgpt-tagged::after {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--pastelgpt-tag-color);
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  opacity: 0.95;
+}
+
+/* Filtering: hide list items only */
+.pastelgpt-hidden {
+  display: none !important;
+}
+
+/* Subtle sidebar tint (applied only to the sidebar nav we detect) */
+.pastelgpt-sidebar-tinted {
+  background-color: var(--pastelgpt-tint-color) !important;
+}
+
+/* Full-page paint overlay */
+body.pastelgpt-page-tinted::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  background: var(--pastelgpt-page-tint-color);
+  pointer-events: none;
+  z-index: 2147483646;
+}
+
+/* Custom right-click tag menu */
+.pastelgpt-menu{
+  position: fixed;
+  z-index: 2147483647;
+  min-width: 190px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(20,20,20,0.94);
+  box-shadow: 0 16px 50px rgba(0,0,0,0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: rgba(255,255,255,0.95);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.pastelgpt-menu-item{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+}
+
+.pastelgpt-menu-item:hover{
+  background: rgba(255,255,255,0.10);
+}
+
+.pastelgpt-menu-dot{
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--dot);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.30);
+  flex: 0 0 auto;
+}
+
+.pastelgpt-menu-sep{
+  height: 1px;
+  margin: 6px 4px;
+  background: rgba(255,255,255,0.12);
+}
+
+.pastelgpt-menu-clear{
+  color: rgba(255,255,255,0.86);
+}

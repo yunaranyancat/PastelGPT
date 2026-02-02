@@ -1,0 +1,133 @@
+// COLORS is loaded from colors.js via script tag in popup.html
+// Access via globalThis.PASTELGPT_COLORS
+const COLORS = globalThis.PASTELGPT_COLORS;
+
+const DEFAULT_SETTINGS = {
+  showUntagged: true,
+  enabledColors: COLORS.map(c => c.id),
+  tint: "off",
+};
+
+async function load() {
+  const { settings = {} } = await chrome.storage.local.get(["settings"]);
+  return { settings: { ...DEFAULT_SETTINGS, ...settings } };
+}
+
+async function refreshActiveTab(){
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id != null) {
+    try { await chrome.tabs.sendMessage(tab.id, { type: "PASTELGPT_REFRESH" }); } catch (_) {}
+  }
+}
+
+async function save(settings) {
+  await chrome.storage.local.set({ settings });
+  // Ask content script to refresh
+  await refreshActiveTab();
+}
+
+function el(tag, attrs = {}, children = []) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k === "style") e.setAttribute("style", v);
+    else if (k.startsWith("on") && typeof v === "function") e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of children) e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  return e;
+}
+
+// Popup runs in its own document; this guard prevents hard failures if popup.html changes.
+document.addEventListener("DOMContentLoaded", async () => {
+  const { settings } = await load();
+
+  const colorsGrid = document.getElementById("colorsGrid");
+  const showUntagged = document.getElementById("showUntagged");
+  const tintSelect = document.getElementById("tintSelect");
+  const resetTintBtn = document.getElementById("resetTintBtn");
+  const resetAllBtn = document.getElementById("resetAllBtn");
+
+  // If any required elements are missing, don't crash the popup.
+  if (!colorsGrid || !showUntagged || !tintSelect || !resetTintBtn || !resetAllBtn) {
+    console.warn("[PastelGPT] popup.html is missing expected elements", {
+      colorsGrid: !!colorsGrid,
+      showUntagged: !!showUntagged,
+      tintSelect: !!tintSelect,
+      resetTintBtn: !!resetTintBtn,
+      resetAllBtn: !!resetAllBtn,
+    });
+    return;
+  }
+
+  showUntagged.checked = settings.showUntagged;
+  tintSelect.value = settings.tint;
+
+  for (const c of COLORS) {
+    const checkbox = el("input", { type: "checkbox", "data-color": c.id });
+    checkbox.checked = settings.enabledColors.includes(c.id);
+
+    checkbox.addEventListener("change", async () => {
+      const enabled = new Set(settings.enabledColors);
+
+      if (checkbox.checked) {
+        enabled.add(c.id);
+      } else {
+        // Prevent "empty filter" state: at least one color must stay enabled.
+        enabled.delete(c.id);
+        if (enabled.size === 0) {
+          checkbox.checked = true;
+          return;
+        }
+      }
+
+      settings.enabledColors = Array.from(enabled);
+      await save(settings);
+    });
+
+    const item = el("label", { class: "color-item" }, [
+      checkbox,
+      el("span", { class: "dot", style: `--dot:${c.hex}` }),
+      el("span", {}, [c.label])
+    ]);
+
+    colorsGrid.appendChild(item);
+  }
+
+  showUntagged.addEventListener("change", async () => {
+    settings.showUntagged = showUntagged.checked;
+    await save(settings);
+  });
+
+  tintSelect.addEventListener("change", async () => {
+    settings.tint = tintSelect.value;
+    await save(settings);
+  });
+
+  resetTintBtn.addEventListener("click", async () => {
+    settings.tint = "off";
+    tintSelect.value = settings.tint;
+    await save(settings);
+  });
+
+  resetAllBtn.addEventListener("click", async () => {
+    // Reset all settings + clear all tags
+    const fresh = { ...DEFAULT_SETTINGS };
+    await chrome.storage.local.set({ tags: {}, settings: fresh });
+
+    // Update in-memory + UI
+    settings.showUntagged = fresh.showUntagged;
+    settings.enabledColors = [...fresh.enabledColors];
+    settings.tint = fresh.tint;
+
+    showUntagged.checked = settings.showUntagged;
+    tintSelect.value = settings.tint;
+    for (const input of colorsGrid.querySelectorAll('input[type="checkbox"][data-color]')) {
+      const color = input.getAttribute("data-color");
+      input.checked = settings.enabledColors.includes(color);
+    }
+
+    await refreshActiveTab();
+  });
+
+});

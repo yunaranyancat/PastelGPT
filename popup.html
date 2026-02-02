@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PastelGPT</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <div class="title">PastelGPT</div>
+      <div class="hint">Right‑click a chat → Tag</div>
+    </header>
+
+    <section>
+      <div class="section-title">Filter</div>
+
+      <label class="row">
+        <input id="showUntagged" type="checkbox" />
+        <span>Show untagged</span>
+      </label>
+
+      <div class="grid" id="colorsGrid"></div>
+    
+      <div class="actions">
+        <button id="resetAllBtn" type="button" class="danger">Reset all</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title">Paint the page!</div>
+      <div class="tint-row">
+        <select id="tintSelect">
+          <option value="off">Off</option>
+          <option value="cherry">Cherry</option>
+          <option value="banana">Banana</option>
+          <option value="matcha">Matcha</option>
+          <option value="blueberry">Blueberry</option>
+          <option value="grape">Grape</option>
+        </select>
+        <button id="resetTintBtn" type="button">Reset paint</button>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-note">Report issues on <a href="https://github.com/yunaranyancat/PastelGPT/issues" target="_blank" style="color: inherit;">GitHub</a></div>
+    </footer>
+
+    <script src="colors.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
