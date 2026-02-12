@@ -10,6 +10,8 @@ A Chrome extension that lets you tag ChatGPT conversations with pastel colors, f
 
 - **Color Tags**: Right-click any conversation in the sidebar to tag it with one of 7 pastel colors
 
+<img width="850" height="453" alt="Screenshot 2026-02-12 113108" src="https://github.com/user-attachments/assets/8ef84f63-e1c0-493a-a70e-a7f2e790cd6e" />
+
 <img width="868" height="460" alt="Screenshot 2026-02-12 113119" src="https://github.com/user-attachments/assets/f4ecb72d-5218-4abb-9d74-789f0cab3826" />
 
 - **Filter by Tag**: Show/hide conversations based on their tag color
