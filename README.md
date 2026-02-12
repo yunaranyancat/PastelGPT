@@ -1,11 +1,21 @@
 # PastelGPT
 
+<img width="322" height="175" alt="Screenshot 2026-02-12 112751" src="https://github.com/user-attachments/assets/44c2e337-5dc0-463d-b866-ee50ca050fe5" />
+
 A Chrome extension that lets you tag ChatGPT conversations with pastel colors, filter conversations by tag, and apply page tints.
 
 ## Features
 
+<img width="850" height="453" alt="Screenshot 2026-02-12 113108" src="https://github.com/user-attachments/assets/a49e40c8-986b-4d8b-9577-eeea03786c53" />
+
 - **Color Tags**: Right-click any conversation in the sidebar to tag it with one of 7 pastel colors
+
+<img width="868" height="460" alt="Screenshot 2026-02-12 113119" src="https://github.com/user-attachments/assets/f4ecb72d-5218-4abb-9d74-789f0cab3826" />
+
 - **Filter by Tag**: Show/hide conversations based on their tag color
+
+<img width="910" height="450" alt="Screenshot 2026-02-12 113131" src="https://github.com/user-attachments/assets/0b0c7335-0ddb-4560-8941-f5a571d71e3a" />
+
 - **Page Tint**: Apply a subtle color overlay to the entire page
 - **Persistent Storage**: Tags are saved locally and persist across sessions
 
