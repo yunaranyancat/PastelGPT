@@ -10,6 +10,9 @@ const TINTS = {
   grape:     "rgba(218, 119, 242, 0.10)",
 };
 const MANAGED_ITEM_ATTR = "data-pastelgpt-managed";
+const CONTEXT_INVALIDATED_MSG = "Extension context invalidated";
+
+let refreshHintShown = false;
 
 function findChatSidebarNav() {
   const candidates = Array.from(document.querySelectorAll("nav, aside"));
@@ -58,6 +61,38 @@ function clearManagedFilters() {
     item.classList.remove("pastelgpt-hidden");
     item.removeAttribute(MANAGED_ITEM_ATTR);
   }
+}
+
+function isExtensionContextInvalidated(error) {
+  const message = String(error?.message || error || "");
+  return message.includes(CONTEXT_INVALIDATED_MSG);
+}
+
+function showRefreshHint() {
+  if (refreshHintShown) return;
+  refreshHintShown = true;
+
+  const host = document.body || document.documentElement;
+  if (!host) return;
+
+  const hint = document.createElement("div");
+  hint.className = "pastelgpt-refresh-hint";
+  hint.textContent = "PastelGPT was updated. Refresh this tab to continue tagging.";
+  hint.setAttribute("role", "status");
+  hint.style.position = "fixed";
+  hint.style.right = "16px";
+  hint.style.bottom = "16px";
+  hint.style.zIndex = "2147483647";
+  hint.style.padding = "10px 12px";
+  hint.style.borderRadius = "10px";
+  hint.style.background = "rgba(20,20,20,0.94)";
+  hint.style.border = "1px solid rgba(255,255,255,0.18)";
+  hint.style.color = "rgba(255,255,255,0.96)";
+  hint.style.font = "12px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif";
+  hint.style.boxShadow = "0 10px 24px rgba(0,0,0,0.35)";
+  hint.style.maxWidth = "300px";
+
+  host.appendChild(hint);
 }
 
 function applyPageTint(tintKey) {
@@ -193,11 +228,21 @@ async function setTagForConversation(conversationId, colorId) {
     });
     if (!result?.ok) throw new Error(result?.error || "Failed to update tag");
   } catch (error) {
+    if (isExtensionContextInvalidated(error)) {
+      showRefreshHint();
+      return;
+    }
+
     console.warn("[PastelGPT] Falling back to direct tag write", error);
-    const { tags = {} } = await chrome.storage.local.get(["tags"]);
-    if (!colorId) delete tags[conversationId];
-    else tags[conversationId] = colorId;
-    await chrome.storage.local.set({ tags });
+    try {
+      const { tags = {} } = await chrome.storage.local.get(["tags"]);
+      if (!colorId) delete tags[conversationId];
+      else tags[conversationId] = colorId;
+      await chrome.storage.local.set({ tags });
+    } catch (fallbackError) {
+      console.warn("[PastelGPT] Direct tag write failed", fallbackError);
+      return;
+    }
   }
   await render();
 }

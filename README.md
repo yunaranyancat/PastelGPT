@@ -47,6 +47,10 @@ A Chrome extension that lets you tag ChatGPT conversations with pastel colors, f
 2. Select a tint from the dropdown (Cherry, Banana, Matcha, Blueberry, or Grape)
 3. Click "Reset paint" to remove the tint
 
+## Troubleshooting
+
+- If you updated/reloaded the extension while a ChatGPT tab was already open, refresh that tab once before tagging again.
+
 ## Supported Sites
 
 - chatgpt.com

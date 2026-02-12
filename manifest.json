@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "PastelGPT",
   "description": "Tag ChatGPT chats with pastel colors. Filter by tag and optionally tint the sidebar.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "permissions": [
     "storage",
     "tabs",
