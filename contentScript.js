@@ -1,4 +1,4 @@
-const COLORS = globalThis.PASTELGPT_COLORS_BY_ID;
+const COLOR_MAP = globalThis.PASTELGPT_COLORS_BY_ID;
 const extractConversationIdFromHref = (href) => globalThis.PASTELGPT_extractConversationId(href, location.origin);
 
 const TINTS = {
@@ -9,6 +9,7 @@ const TINTS = {
   blueberry: "rgba(116, 192, 252, 0.10)",
   grape:     "rgba(218, 119, 242, 0.10)",
 };
+const MANAGED_ITEM_ATTR = "data-pastelgpt-managed";
 
 function findChatSidebarNav() {
   const candidates = Array.from(document.querySelectorAll("nav, aside"));
@@ -31,7 +32,7 @@ async function loadAll() {
 
 function applyTagToLink(link, colorId) {
   if (!link) return;
-  const c = colorId && COLORS[colorId] ? COLORS[colorId] : null;
+  const c = colorId && COLOR_MAP[colorId] ? COLOR_MAP[colorId] : null;
 
   if (!c) {
     link.classList.remove("pastelgpt-tagged");
@@ -48,7 +49,15 @@ function applyTagToLink(link, colorId) {
 function applyFilterToLink(link, shouldShow) {
   const item = getItemElementFromLink(link);
   if (!item) return;
+  item.setAttribute(MANAGED_ITEM_ATTR, "1");
   item.classList.toggle("pastelgpt-hidden", !shouldShow);
+}
+
+function clearManagedFilters() {
+  for (const item of document.querySelectorAll(`[${MANAGED_ITEM_ATTR}="1"]`)) {
+    item.classList.remove("pastelgpt-hidden");
+    item.removeAttribute(MANAGED_ITEM_ATTR);
+  }
 }
 
 function applyPageTint(tintKey) {
@@ -64,18 +73,20 @@ function applyPageTint(tintKey) {
 
 async function render() {
   const { tags, settings } = await loadAll();
-  let enabledColors = Array.isArray(settings?.enabledColors) ? settings.enabledColors : Object.keys(COLORS);
-  if (enabledColors.length === 0) enabledColors = Object.keys(COLORS);
+  let enabledColors = Array.isArray(settings?.enabledColors) ? settings.enabledColors : Object.keys(COLOR_MAP);
+  if (enabledColors.length === 0) enabledColors = Object.keys(COLOR_MAP);
   const showUntagged = settings?.showUntagged ?? true;
   const tintKey = settings?.tint ?? "off";
 
   const nav = findChatSidebarNav();
   applyPageTint(tintKey);
+  if (!nav) {
+    clearManagedFilters();
+    return;
+  }
 
-  const links = Array.from(document.querySelectorAll('a[href*="/c/"]'));
+  const links = Array.from(nav.querySelectorAll('a[href*="/c/"]'));
   for (const link of links) {
-    if (nav && !nav.contains(link)) continue;
-
     const convId = extractConversationIdFromHref(link.getAttribute("href"));
     if (!convId) continue;
 
@@ -117,7 +128,7 @@ function ensureMenu() {
     return item;
   };
 
-  for (const [id, c] of Object.entries(COLORS)) {
+  for (const [id, c] of Object.entries(COLOR_MAP)) {
     menuEl.appendChild(makeItem(c.label, c.hex, async () => {
       await setTagForConversation(menuConvId, id);
     }));
@@ -173,11 +184,21 @@ function hideMenu() {
 }
 
 async function setTagForConversation(conversationId, colorId) {
-  const { tags = {} } = await chrome.storage.local.get(["tags"]);
   if (!conversationId) return;
-  if (!colorId) delete tags[conversationId];
-  else tags[conversationId] = colorId;
-  await chrome.storage.local.set({ tags });
+  try {
+    const result = await chrome.runtime.sendMessage({
+      type: "PASTELGPT_SET_TAG",
+      conversationId,
+      colorId
+    });
+    if (!result?.ok) throw new Error(result?.error || "Failed to update tag");
+  } catch (error) {
+    console.warn("[PastelGPT] Falling back to direct tag write", error);
+    const { tags = {} } = await chrome.storage.local.get(["tags"]);
+    if (!colorId) delete tags[conversationId];
+    else tags[conversationId] = colorId;
+    await chrome.storage.local.set({ tags });
+  }
   await render();
 }
 

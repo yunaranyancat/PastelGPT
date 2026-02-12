@@ -2,8 +2,9 @@ importScripts("colors.js");
 
 const MENU_PREFIX = "pastelgpt_tag_";
 const MENU_CLEAR = "pastelgpt_clear";
+const MENU_CONTEXTS = ["link"];
 
-const lastTargetByTab = new Map();
+let tagWriteChain = Promise.resolve();
 
 chrome.runtime.onInstalled.addListener(async () => {
   try { await chrome.contextMenus.removeAll(); } catch (_) {}
@@ -11,7 +12,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   chrome.contextMenus.create({
     id: "pastelgpt_root",
     title: "Tag",
-    contexts: ["page", "link"]
+    contexts: MENU_CONTEXTS
   });
 
   for (const c of COLORS) {
@@ -19,29 +20,48 @@ chrome.runtime.onInstalled.addListener(async () => {
       id: MENU_PREFIX + c.id,
       parentId: "pastelgpt_root",
       title: `${c.emoji} ${c.label}`,
-      contexts: ["page", "link"]
+      contexts: MENU_CONTEXTS
     });
   }
 
   chrome.contextMenus.create({
     id: MENU_CLEAR,
     parentId: "pastelgpt_root",
-    title: "⬜ Clear tag",
-    contexts: ["page", "link"]
+    title: "\u2B1C Clear tag",
+    contexts: MENU_CONTEXTS
   });
 });
 
-async function getState() {
-  const { tags = {} } = await chrome.storage.local.get(["tags"]);
-  return { tags };
+function enqueueTagMutation(mutateTags) {
+  tagWriteChain = tagWriteChain
+    .catch(() => {})
+    .then(async () => {
+      const { tags = {} } = await chrome.storage.local.get(["tags"]);
+      mutateTags(tags);
+      await chrome.storage.local.set({ tags });
+    });
+
+  return tagWriteChain;
 }
 
 async function setTag(conversationId, colorId) {
-  const { tags } = await getState();
-  if (!conversationId) return;
-  if (!colorId) delete tags[conversationId];
-  else tags[conversationId] = colorId;
-  await chrome.storage.local.set({ tags });
+  if (!conversationId) return false;
+  if (colorId && !COLORS_BY_ID[colorId]) return false;
+
+  await enqueueTagMutation((tags) => {
+    if (!colorId) delete tags[conversationId];
+    else tags[conversationId] = colorId;
+  });
+
+  return true;
+}
+
+async function clearAllTags() {
+  await enqueueTagMutation((tags) => {
+    for (const conversationId of Object.keys(tags)) {
+      delete tags[conversationId];
+    }
+  });
 }
 
 async function notifyActiveTab(tabId) {
@@ -51,9 +71,25 @@ async function notifyActiveTab(tabId) {
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg?.type === "PASTELGPT_SET_TARGET" && sender?.tab?.id != null) {
-    lastTargetByTab.set(sender.tab.id, msg.conversationId || "");
-    sendResponse({ ok: true });
+  if (msg?.type === "PASTELGPT_SET_TAG") {
+    setTag(msg.conversationId, msg.colorId)
+      .then(async (ok) => {
+        if (!ok) {
+          return { ok: false, error: "Invalid conversation or color" };
+        }
+        if (sender?.tab?.id != null) await notifyActiveTab(sender.tab.id);
+        return { ok: true };
+      })
+      .then((response) => sendResponse(response))
+      .catch((error) => sendResponse({ ok: false, error: String(error) }));
+    return true;
+  }
+
+  if (msg?.type === "PASTELGPT_CLEAR_ALL_TAGS") {
+    clearAllTags()
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: String(error) }));
+    return true;
   }
 });
 
@@ -61,9 +97,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const tabId = tab?.id;
   if (tabId == null) return;
 
-  const convFromLink = extractConversationId(info.linkUrl);
-  const conversationId = convFromLink || lastTargetByTab.get(tabId) || "";
-
+  const conversationId = extractConversationId(info.linkUrl);
   if (!conversationId) return;
 
   if (info.menuItemId === MENU_CLEAR) {

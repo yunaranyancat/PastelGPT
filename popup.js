@@ -1,26 +1,65 @@
-const COLORS = globalThis.PASTELGPT_COLORS;
+const AVAILABLE_COLORS = globalThis.PASTELGPT_COLORS;
 
 const DEFAULT_SETTINGS = {
   showUntagged: true,
-  enabledColors: COLORS.map(c => c.id),
+  enabledColors: AVAILABLE_COLORS.map((c) => c.id),
   tint: "off",
 };
 
-async function load() {
-  const { settings = {} } = await chrome.storage.local.get(["settings"]);
-  return { settings: { ...DEFAULT_SETTINGS, ...settings } };
+const COLOR_ID_SET = new Set(AVAILABLE_COLORS.map((c) => c.id));
+const TINT_OPTIONS = new Set(["off", "cherry", "banana", "matcha", "blueberry", "grape"]);
+
+let saveChain = Promise.resolve();
+
+function normalizeSettings(settings = {}) {
+  const enabledColors = Array.isArray(settings.enabledColors)
+    ? settings.enabledColors.filter((id) => COLOR_ID_SET.has(id))
+    : [...DEFAULT_SETTINGS.enabledColors];
+
+  return {
+    showUntagged: typeof settings.showUntagged === "boolean"
+      ? settings.showUntagged
+      : DEFAULT_SETTINGS.showUntagged,
+    enabledColors: enabledColors.length > 0 ? enabledColors : [...DEFAULT_SETTINGS.enabledColors],
+    tint: typeof settings.tint === "string" && TINT_OPTIONS.has(settings.tint)
+      ? settings.tint
+      : DEFAULT_SETTINGS.tint,
+  };
 }
 
-async function refreshActiveTab(){
+async function load() {
+  const { settings = {} } = await chrome.storage.local.get(["settings"]);
+  return { settings: normalizeSettings(settings) };
+}
+
+async function refreshActiveTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id != null) {
     try { await chrome.tabs.sendMessage(tab.id, { type: "PASTELGPT_REFRESH" }); } catch (_) {}
   }
 }
 
-async function save(settings) {
-  await chrome.storage.local.set({ settings });
-  await refreshActiveTab();
+function queueSave(settings) {
+  const snapshot = normalizeSettings(settings);
+  saveChain = saveChain
+    .then(async () => {
+      await chrome.storage.local.set({ settings: snapshot });
+      await refreshActiveTab();
+    })
+    .catch((error) => {
+      console.error("[PastelGPT] Failed to save settings", error);
+    });
+
+  return saveChain;
+}
+
+async function clearAllTags() {
+  try {
+    const result = await chrome.runtime.sendMessage({ type: "PASTELGPT_CLEAR_ALL_TAGS" });
+    if (result?.ok) return;
+  } catch (_) {}
+
+  await chrome.storage.local.set({ tags: {} });
 }
 
 function el(tag, attrs = {}, children = []) {
@@ -58,7 +97,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   showUntagged.checked = settings.showUntagged;
   tintSelect.value = settings.tint;
 
-  for (const c of COLORS) {
+  for (const c of AVAILABLE_COLORS) {
     const checkbox = el("input", { type: "checkbox", "data-color": c.id });
     checkbox.checked = settings.enabledColors.includes(c.id);
 
@@ -76,7 +115,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       settings.enabledColors = Array.from(enabled);
-      await save(settings);
+      await queueSave(settings);
     });
 
     const item = el("label", { class: "color-item" }, [
@@ -90,23 +129,27 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   showUntagged.addEventListener("change", async () => {
     settings.showUntagged = showUntagged.checked;
-    await save(settings);
+    await queueSave(settings);
   });
 
   tintSelect.addEventListener("change", async () => {
     settings.tint = tintSelect.value;
-    await save(settings);
+    await queueSave(settings);
   });
 
   resetTintBtn.addEventListener("click", async () => {
     settings.tint = "off";
     tintSelect.value = settings.tint;
-    await save(settings);
+    await queueSave(settings);
   });
 
   resetAllBtn.addEventListener("click", async () => {
-    const fresh = { ...DEFAULT_SETTINGS };
-    await chrome.storage.local.set({ tags: {}, settings: fresh });
+    const fresh = normalizeSettings(DEFAULT_SETTINGS);
+
+    await Promise.all([
+      queueSave(fresh),
+      clearAllTags(),
+    ]);
 
     settings.showUntagged = fresh.showUntagged;
     settings.enabledColors = [...fresh.enabledColors];
@@ -118,8 +161,5 @@ document.addEventListener("DOMContentLoaded", async () => {
       const color = input.getAttribute("data-color");
       input.checked = settings.enabledColors.includes(color);
     }
-
-    await refreshActiveTab();
   });
-
 });
